@@ -1,20 +1,11 @@
-import os, strutils, future, sequtils
+import os, strutils, sequtils
 
-type
-  FieldProps* = enum
-    fpNotNull fpPrimaryKey fpUnique
+when not defined(release):
+  import future
 
-  SqlField* = object
-    name*: string
-    kind*: string
-    options*: seq[FieldProps]
-    default*: string
-
-  SqlTable* = object
-    schema*, name*: string
-    fields: seq[SqlField]
-
-  Validater = proc(x: int, tkn: seq[string]): bool
+import types, utils
+import goout/gotable
+import goout/goentity
 
 proc validateTest(idx: int, tokens: seq[string], test: Validater): bool =
   result = false
@@ -27,10 +18,10 @@ proc isForeignKey(idx: int, tokens: seq[string]): bool =
 
 proc notValidTableName(idx: int, tokens: seq[string]): bool =
   validateTest(idx, tokens, proc(x: int, tkn: seq[string]): bool =
-    (tkn[x-1]).endsWith ")")
+    tkn[x-1].endsWith ")")
 
 proc purgeComments(exprstr: string): string =
-  var buffer = newstring exprstr.len
+  var buffer = ""
   var iscomment = false
   for idx, c in exprstr:
     if c in NewLines:
@@ -55,7 +46,7 @@ proc parseOptions(expr: string): seq[FieldProps] =
     of "unique": result.add fpUnique
 
 proc tokenizeParenthesis(expr: string): string =
-  var buffer = newstring(expr.len)
+  var buffer = ""
   var isparenthesis = false
   for c in expr:
     case c
@@ -69,7 +60,7 @@ proc tokenizeParenthesis(expr: string): string =
   buffer
 
 proc getDefault(expr: string): string =
-  var tokens = expr.tokenizeParenthesis.splitWhitespace
+  var tokens = expr.splitWhitespace
   for idx, token in tokens:
     if token == "default" and idx != tokens.len - 1:
       return tokens[idx+1]
@@ -79,13 +70,12 @@ proc parseTableField(expr: string): SqlField =
   result.name = tokens[0]
   result.kind = tokens[1]
   if tokens.len > 2:
-    result.options = (tokens[2]).parseOptions
-    result.default = if "default" in tokens[2]: (tokens[2]).getDefault
+    result.options = tokens[2].parseOptions
+    result.default = if "default" in tokens[2]: tokens[2].getDefault
                      else: nil
 
-proc parseSqlTable(expr: string): SqlTable =
+proc parseSqlTable*(expr: string): SqlTable =
   var tokens = expr.purgeComments.splitWhitespace
-  echo()
 
   var pos = -1
   for idx, token in tokens:
@@ -100,7 +90,7 @@ proc parseSqlTable(expr: string): SqlTable =
         if token.endsWith("(") and token != "(":
           schemaname = (token.split('(', 1)[0]).split('.', 1)
         else:
-          schemaname = (tokens[idx-1]).split('.', maxsplit=1)
+          schemaname = tokens[idx-1].split('.', maxsplit=1)
         #dump schemaname
         if schemaname.len > 1:
           result.schema = schemaname[0]
@@ -111,50 +101,117 @@ proc parseSqlTable(expr: string): SqlTable =
         break
 
   result.fields = @[]
+  #dump tokens
   tokens = (tokens[pos+1 .. ^1]).join(sep=" ").split(',')
+  #[
+  dump pos
+  dump expr
+  dump tokens
+  ]#
   for idx, token in tokens:
     if token.strip.startsWith "foreign key":
-      dump token
       continue
-    result.fields.add token.strip.parseTableField
+    result.fields.add token.strip.tokenizeParenthesis.parseTableField
 
 
-proc parseExpression(exprstr: string): seq[string] =
+proc parseExpression*(exprstr: string): seq[string] =
   exprstr.split(';').mapIt it.strip
 
-proc main =
-  var fname: string = ""
-  if paramcount() >= 1:
-    fname = paramStr 1
-  else:
-    quit "Please supply filename"
+proc parse*(lines: seq[string]): seq[string] =
+  result = @[]
+  var
+    prevline = ""
+    cont = false
+    ln = ""
+  for line in lines:
+    if line.startsWith("\\") or line.startsWith("--"):
+      continue
 
-  var file = open fname
-  var line = ""
-  var buff = ""
-  var tables = newSeq[SqlTable]()
-  while file.readLine line:
-    var tokens = line.toLowerAscii.splitWhitespace
+    if cont: ln = prevline & line
+    else: ln = line
 
-    if tokens.len > 2 and tokens[0] == "create" and tokens[1] == "table":
-      #echo line
-      buff &= (line & "\n")
-      while file.readLine line:
-        line = line.toLowerAscii
-        var pos = line.find(';')
-        if pos == line.len - 1:
-          buff &= (line & "\n")
-          tables.add buff.parseSqlTable()
-          buff = ""
-          break
-        else:
-          buff &= (line[0..pos] & "\n")
-          tables.add buff.parseSqlTable()
-          buff = line[pos+1..^1]
+    prevline = ""
+    cont = false
+
+    var exprs = ln.split(';')
+    if ln.endsWith ';':
+      if exprs.len == 1: result.add ln
+      elif exprs.len > 1:
+        for expr in exprs:
+          if expr != "": result.add(expr & ';')
     else:
-      discard
-  for table in tables:
-    echo table
-    #discard
+      if exprs.len == 1:
+        prevline = ln
+      elif exprs.len > 1:
+        for expr in exprs[0..^2]:
+          if expr != "": result.add(expr & ';')
+        prevline = exprs[^1]
+      cont = true
 
-main()
+proc parseSql*(file: File): SqlExpressions =
+  var buff = newseq[string]()
+  while not file.endOfFile:
+    var line = file.readLine & "\n"
+    if line == "": continue
+    buff.add line.strip(trailing = false)
+  buff.parse
+
+proc parseSql*(filename: string): SqlExpressions =
+  var file = open filename
+  result = file.parseSql
+  close file
+
+when isMainModule:
+  proc main =
+    var fname: string = ""
+    if paramcount() >= 1:
+      fname = paramStr 1
+    else:
+      quit "Please supply filename"
+
+    var file = open fname
+    var line = ""
+    var buff = ""
+    var tables = newSeq[SqlTable]()
+    while file.readLine line:
+      var tokens = line.toLowerAscii.splitWhitespace
+
+      if tokens.len > 2 and tokens[0] == "create" and tokens[1] == "table":
+        #echo line
+        buff &= (line & "\n")
+        while file.readLine line:
+          line = line.toLowerAscii
+          var pos = line.find(';')
+          if pos == line.len - 1:
+            buff &= (line & "\n")
+            tables.add buff.parseSqlTable()
+            buff = ""
+            break
+          elif pos == -1:
+            buff &= (line & "\n")
+          else:
+            buff &= (line[0..pos] & "\n")
+            tables.add buff.parseSqlTable()
+            buff = line[pos+1..^1]
+      else:
+        discard
+    #[
+    for table in tables:
+      #echo table
+      #discard
+      #stdout.generateGoTable table
+      echo table.generateGoTable
+      ]#
+    stdout.writeGoEntity(tables, needtime = tables.needtime)
+
+    file.setFilePos 0
+    var exprs = newseq[string]()
+    while not file.endOfFile:
+      var line = file.readLine & "\n"
+      if line == "": continue
+      exprs.add line.strip(trailing = false)
+    for idx, expr in exprs.parse:
+      echo idx, ": ", expr
+    close file
+
+  main()
