@@ -1,4 +1,4 @@
-import os, strutils, sequtils
+import os, strutils, sequtils, tables
 
 when not defined(release):
   import future
@@ -30,7 +30,7 @@ proc purgeComments(exprstr: string): string =
       iscomment = true
 
     if not iscomment: buffer &= c
-    else: stdout.write c
+    #else: stdout.write c
   buffer
 
 proc parseOptions(expr: string): seq[FieldProps] =
@@ -44,6 +44,8 @@ proc parseOptions(expr: string): seq[FieldProps] =
     of "key": result.add fpPrimaryKey
     of "null": result.add fpNotNull
     of "unique": result.add fpUnique
+    of "index": result.add fpIndex
+    of "references": result.add fpForeignKey
 
 proc tokenizeParenthesis(expr: string): string =
   var buffer = ""
@@ -65,14 +67,61 @@ proc getDefault(expr: string): string =
     if token == "default" and idx != tokens.len - 1:
       return tokens[idx+1]
 
-proc parseTableField(expr: string): SqlField =
+proc splitSchemaName(schnm: string): (string, string) =
+  var schname = schnm.split('.', 1)
+  (schname[0], schname[1])
+
+proc parseForeign(expr: string): SqlForeign =
+  var tokens = expr.splitWhitespace
+  var pos = -1
+  for idx, token in tokens:
+    pos = idx
+    if token == "references": break
+  if pos == tokens.len - 1:
+    return SqlForeign()
+  for idx, token in tokens[pos+1 .. ^1]:
+    var parpos = token.find '('
+    if parpos == 0 and idx != 0:
+      (result.schema, result.table) = tokens[pos+1+idx-1].splitSchemaName
+      if idx+pos != tokens.len - 1 and token != "(":
+        result.field = tokens[pos+idx].strip(chars = {'(', ')'} + Whitespace)
+        break
+
+    elif parpos != token.len - 1:
+      var schname_fld = tokens[pos+1+idx].split('(', 1)
+      (result.schema, result.table) = schname_fld[0].splitSchemaName
+      result.field = schname_fld[1].split(')')[0]
+      break
+
+    elif parpos == token.len - 1:
+      var schname_fld = tokens[idx].split('(', 1)
+      (result.schema, result.table) = schname_fld[0].splitSchemaName
+      if schname_fld[1].endsWith ")":
+        var fld = schname_fld[1].split(')')
+        result.field = fld[0]
+        break
+  #dump result.schema
+  #dump result.table
+
+proc parseTableField(tbl: var SqlTable, expr: string): SqlField =
   var tokens = expr.splitWhitespace 2
+  if tokens[0] == "foreign" and tokens[1] == "key":
+    var fieldname = tokens[2].split(')', 1)[0].strip(chars = {'(', ')'})
+    var field = tbl.fields[fieldname]
+    #dump field
+    field.options.add fpForeignKey
+    field.foreign = expr.parseForeign
+    return field
   result.name = tokens[0]
   result.kind = tokens[1]
   if tokens.len > 2:
     result.options = tokens[2].parseOptions
     result.default = if "default" in tokens[2]: tokens[2].getDefault
-                     else: nil
+                     else: ""
+    result.foreign = tokens[2].parseForeign
+  else:
+    result.options = @[]
+    result.default = ""
 
 proc parseSqlTable*(expr: string): SqlTable =
   var tokens = expr.purgeComments.splitWhitespace
@@ -81,17 +130,14 @@ proc parseSqlTable*(expr: string): SqlTable =
   for idx, token in tokens:
     if ((token == "(" or token.startsWith "(") and idx != 0) or token.endsWith "(":
       pos = idx
-      #dump tokens[idx-1]
       if isForeignKey(idx-1, tokens) or notValidTableName(idx-1, tokens):
         continue
       else:
-        #dump tokens[idx]
         var schemaname = newseq[string]()
         if token.endsWith("(") and token != "(":
           schemaname = (token.split('(', 1)[0]).split('.', 1)
         else:
           schemaname = tokens[idx-1].split('.', maxsplit=1)
-        #dump schemaname
         if schemaname.len > 1:
           result.schema = schemaname[0]
           result.name = schemaname[1]
@@ -100,18 +146,11 @@ proc parseSqlTable*(expr: string): SqlTable =
           result.name = schemaname[0]
         break
 
-  result.fields = @[]
-  #dump tokens
+  result.fields = newTable[string, SqlField]()
   tokens = (tokens[pos+1 .. ^1]).join(sep=" ").split(',')
-  #[
-  dump pos
-  dump expr
-  dump tokens
-  ]#
   for idx, token in tokens:
-    if token.strip.startsWith "foreign key":
-      continue
-    result.fields.add token.strip.tokenizeParenthesis.parseTableField
+    var field = result.parseTableField token.strip.tokenizeParenthesis
+    result.fields[field.name] = field
 
 
 proc parseExpression*(exprstr: string): seq[string] =
@@ -161,6 +200,13 @@ proc parseSql*(filename: string): SqlExpressions =
   result = file.parseSql
   close file
 
+proc getTables*(exprs: SqlExpressions): seq[SqlTable] =
+  result = @[]
+  for expr in exprs:
+    var tokens = expr.toLowerAscii.splitWhitespace
+    if tokens.len > 2 and tokens[0] == "create" and tokens[1] == "table":
+      result.add expr.parseSqlTable
+
 when isMainModule:
   proc main =
     var fname: string = ""
@@ -195,13 +241,6 @@ when isMainModule:
             buff = line[pos+1..^1]
       else:
         discard
-    #[
-    for table in tables:
-      #echo table
-      #discard
-      #stdout.generateGoTable table
-      echo table.generateGoTable
-      ]#
     stdout.writeGoEntity(tables, needtime = tables.needtime)
 
     file.setFilePos 0
@@ -210,8 +249,6 @@ when isMainModule:
       var line = file.readLine & "\n"
       if line == "": continue
       exprs.add line.strip(trailing = false)
-    for idx, expr in exprs.parse:
-      echo idx, ": ", expr
     close file
 
   main()

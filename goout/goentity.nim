@@ -4,7 +4,7 @@
 #import ../utils
 #import gotable
 #
-#proc writeGoEntity*(f: File, sqltable: openarray[SqlTable], needtime = false) =
+#proc writeGoEntity*(f: File, sqltable: seq[SqlTable], needtime = false) =
 package entity
 
 import (
@@ -14,5 +14,6 @@ import (
 )
 
 #for tbl in sqltable:
-$tbl.generateGoTable
+#var tblstr = tbl.generateGoTable sqltable
+$tblstr
 #end for
