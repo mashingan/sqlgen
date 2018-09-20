@@ -50,26 +50,23 @@ proc generateTableField*(field: SqlField): string =
     if field.default != "": ";default:" & field.default else: "",
     if fpPrimaryKey in field.options: ";primary_key" else: "",
     if fpUnique in field.options: ";unique" else: "",
-    if fpIndex in field.options: ";index" else: "",
+    if fpIndex in field.options: ";index:" % [field.name] else: "",
     if fpNotNull in field.options: ";not null" else: "",
     if fpUnique in field.options and fpIndex in field.options:
       ";unique_index"
     else: ""
   ]
-  "$# $# `$#`," % [field.name.toPascalCase, field.kind.typeMap,
+  "$# $# `$#`" % [field.name.toPascalCase, field.kind.typeMap,
     gormbuilder]
 
-proc tableRelation(field: SqlField, tbls: seq[SqlTable]): FieldRelation =
-  result = rOneToMany
-  for tbl in tbls:
-    if field.foreign.schema == tbl.schema and field.foreign.table == tbl.name:
-      var fk = tbl.fields[field.foreign.field]
-      if fpPrimaryKey notin fk.options or fpUnique notin fk.options:
-        result = rOneToOne
-        break
+proc tableRelation(field: SqlField): FieldRelation =
+  if fpUnique in field.options:
+    rOneToOne
+  else:
+    rOneToMany
 
-proc generateFieldFK*(field: SqlField, tbls: seq[SqlTable]): string =
-  var rel = field.tableRelation(tbls)
+proc generateFieldFK*(field: SqlField): string =
+  var rel = field.tableRelation
   var manyid = if rel == rOneToOne: ""
                else: "[]"
   var gormbuilder = """gorm:"foreignkey:$1;association_foreignkey:$2""""
@@ -79,7 +76,7 @@ proc generateFieldFK*(field: SqlField, tbls: seq[SqlTable]): string =
   else:
     gormbuilder = gormbuilder % [field.foreign.field.toPascalCase,
       field.name.toPascalCase]
-  "$# $# `$#`," % [field.name.toPascalCase & "FK",
+  "$# $# `$#`" % [field.name.toPascalCase & "FK",
     manyid & field.foreign.table.toPascalCase, gormbuilder]
 
 proc needTime*(tbl: SqlTable): bool =
@@ -126,7 +123,8 @@ Usage:
 Example:
   $./parsesql -f=/path/of/sql/script --out:entity.go
 
-Any error will during parsing option will yield QuitFailure (-1) exit code
+Any error will during parsing option will yield QuitFailure (-1) exit code.
+If there's no provided output path or `-o=stdout` then the out file will be stdout.
 """
   template toQuit(exitcode: int): typed =
     echo options
@@ -137,7 +135,8 @@ Any error will during parsing option will yield QuitFailure (-1) exit code
     of cmdArgument:
       when not defined(relese):
         echo fmt"{key} {val}"
-      sqlfile = val
+        sqlfile = val
+      discard
     of cmdLongOption, cmdShortOption:
       case key
       of "input", "file", "i", "f": sqlfile = val
@@ -146,8 +145,11 @@ Any error will during parsing option will yield QuitFailure (-1) exit code
     of cmdEnd:
       toQuit QuitFailure
 
-    if not fileExists(sqlfile):
-      echo sqlfile, " not available, quit error"
-      toQuit QuitFailure
+  if sqlfile == "":
+    echo "please provide file"
+    toQuit QuitFailure
+  elif not fileExists(sqlfile):
+    echo sqlfile, " not available"
+    toQuit QuitFailure
 
   (sqlfile, outpath)

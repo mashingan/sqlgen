@@ -262,12 +262,12 @@ when isMainModule:
 
     when defined(release):
       var tables = filename.parseSql.parse.getTables
-      var file: File
+      var outfile: File
       if outpath == "stdout" or outpath == "":
-        file = stdout
+        outfile = stdout
       else:
-        file = open(outpath, fmWrite)
-      file.writeGoEntity(tables, needtime = tables.needtime)
+        outfile = open(outpath, fmWrite)
+      outfile.writeGoEntity(tables, needtime = tables.needtime)
 
 
   main()

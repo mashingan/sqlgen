@@ -12,16 +12,16 @@ type $tablename struct {
   #for field in sqltable.fields.values:
         $field.generateTableField
         #if field.hasForeignKey:
-        #var fkfield = field.generateFieldFK tbls
+        #var fkfield = field.generateFieldFK
         $fkfield
         #end if
   #end for
 }
 
-function ($tablename) Schema() string {
+func ($tablename) Schema() string {
         return "$sqltable.schema"
 }
 
-function ($tablename) TableName() string {
+func ($tablename) TableName() string {
         return "$sqltable.name"
 }
