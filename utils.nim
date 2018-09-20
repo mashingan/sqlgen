@@ -55,7 +55,7 @@ proc generateTableField*(field: SqlField): string =
       ";unique_index"
     else: ""
   ]
-  "$# $# `$#`," % [field.name.toPascalCase, field.kind.typeMap,
+  "$# $# `$#`," % [field.name.toPascalCase, field.kind.toLowerAscii.typeMap,
     gormbuilder]
 
 proc tableRelation(field: SqlField, tbls: seq[SqlTable]): FieldRelation =
@@ -66,7 +66,6 @@ proc tableRelation(field: SqlField, tbls: seq[SqlTable]): FieldRelation =
       if fpPrimaryKey notin fk.options or fpUnique notin fk.options:
         result = rOneToOne
         break
-  result = rOneToMany
 
 proc generateFieldFK*(field: SqlField, tbls: seq[SqlTable]): string =
   var rel = field.tableRelation(tbls)
@@ -93,7 +92,7 @@ proc needTime*(tbls: seq[SqlTable]): bool =
   tbls.any needTime
 
 proc typeMap*(kind: string, sql = PostgreSql): string =
-  result = "kind"
+  result = kind
   case sql
   of PostgreSql:
     case kind

@@ -205,6 +205,7 @@ proc getTables*(exprs: SqlExpressions): seq[SqlTable] =
   for expr in exprs:
     var tokens = expr.toLowerAscii.splitWhitespace
     if tokens.len > 2 and tokens[0] == "create" and tokens[1] == "table":
+      dump expr
       result.add expr.parseSqlTable
 
 when isMainModule:
@@ -241,7 +242,7 @@ when isMainModule:
             buff = line[pos+1..^1]
       else:
         discard
-    stdout.writeGoEntity(tables, needtime = tables.needtime)
+    #stdout.writeGoEntity(tables, needtime = tables.needtime)
 
     file.setFilePos 0
     var exprs = newseq[string]()
@@ -250,5 +251,7 @@ when isMainModule:
       if line == "": continue
       exprs.add line.strip(trailing = false)
     close file
+    var newtables = fname.parseSql.parse.getTables
+    stdout.writeGoEntity(newtables, needtime = newtables.needtime)
 
   main()
