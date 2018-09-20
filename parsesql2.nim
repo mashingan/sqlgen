@@ -127,7 +127,7 @@ proc parseTableField(tbl: var SqlTable, expr: string): SqlField =
     result.default = ""
 
 proc parseSqlTable*(expr: string): SqlTable =
-  var tokens = expr.toLowerAscii.purgeComments.splitWhitespace
+  var tokens = expr.purgeComments.splitWhitespace
 
   var pos = -1
   for idx, token in tokens:
@@ -206,9 +206,10 @@ proc parseSql*(filename: string): SqlExpressions =
 proc getTables*(exprs: SqlExpressions): seq[SqlTable] =
   result = @[]
   for expr in exprs:
-    var tokens = expr.toLowerAscii.splitWhitespace
+    var expression = expr.toLowerAscii
+    var tokens = expression.splitWhitespace
     if tokens.len > 2 and tokens[0] == "create" and tokens[1] == "table":
-      result.add expr.parseSqlTable
+      result.add expression.parseSqlTable
 
 when isMainModule:
   proc main =
