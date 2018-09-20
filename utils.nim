@@ -1,6 +1,7 @@
-import strutils, strformat, tables, sequtils
+import strutils, strformat, tables, sequtils, parseopt, os
 
 when not defined(release):
+  import strformat
   import future
 
 import types
@@ -55,7 +56,7 @@ proc generateTableField*(field: SqlField): string =
       ";unique_index"
     else: ""
   ]
-  "$# $# `$#`," % [field.name.toPascalCase, field.kind.toLowerAscii.typeMap,
+  "$# $# `$#`," % [field.name.toPascalCase, field.kind.typeMap,
     gormbuilder]
 
 proc tableRelation(field: SqlField, tbls: seq[SqlTable]): FieldRelation =
@@ -110,3 +111,43 @@ proc typeMap*(kind: string, sql = PostgreSql): string =
     discard
   else:
     discard
+
+proc parseCmd*(): tuple[sqlfile, outpath: string] =
+  var
+    sqlfile = ""
+    outpath = ""
+    options = """
+parsesql: program to get SQL script and put the output to file
+Usage:
+  --input | --file | -i | -f  supply the input sql script path file
+  --out   | -o                provide the output path file
+  --help  | -h                print this
+
+Example:
+  $./parsesql -f=/path/of/sql/script --out:entity.go
+
+Any error will during parsing option will yield QuitFailure (-1) exit code
+"""
+  template toQuit(exitcode: int): typed =
+    echo options
+    quit exitcode
+
+  for kind, key, val in getopt():
+    case kind
+    of cmdArgument:
+      when not defined(relese):
+        echo fmt"{key} {val}"
+      sqlfile = val
+    of cmdLongOption, cmdShortOption:
+      case key
+      of "input", "file", "i", "f": sqlfile = val
+      of "out", "o":                outpath = val
+      of "help", "h":               toQuit QuitSuccess
+    of cmdEnd:
+      toQuit QuitFailure
+
+    if not fileExists(sqlfile):
+      echo sqlfile, " not available, quit error"
+      toQuit QuitFailure
+
+  (sqlfile, outpath)
