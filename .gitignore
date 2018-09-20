@@ -11,3 +11,5 @@ nimcache/
 
 *.exe
 *.html
+*.tar.gz
+*.zip
