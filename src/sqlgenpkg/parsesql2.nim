@@ -34,19 +34,19 @@ proc purgeComments(exprstr: string): string =
     #else: stdout.write c
   buffer
 
-proc parseOptions(expr: string): seq[FieldProps] =
-  result = @[]
+proc parseOptions(expr: string): set[FieldProps] =
+  result = {}
   if expr.len == 0:
     return
 
   var tokens = expr.splitWhitespace
   for idx, token in tokens:
     case token
-    of "key": result.add fpPrimaryKey
-    of "null": result.add fpNotNull
-    of "unique": result.add fpUnique
-    of "index": result.add fpIndex
-    of "references": result.add fpForeignKey
+    of "key": result.incl fpPrimaryKey
+    of "null": result.incl fpNotNull
+    of "unique": result.incl fpUnique
+    of "index": result.incl fpIndex
+    of "references": result.incl fpForeignKey
 
 proc tokenizeParenthesis(expr: string): string =
   var buffer = ""
@@ -112,7 +112,7 @@ proc parseTableField(tbl: var SqlTable, expr: string): SqlField =
     var fieldname = tokens[2].split(')', 1)[0].strip(chars = {'(', ')'})
     var field = tbl.fields[fieldname]
     #dump field
-    field.options.add fpForeignKey
+    field.options.incl fpForeignKey
     field.foreign = expr.parseForeign
     return field
   result.name = tokens[0]
@@ -123,7 +123,7 @@ proc parseTableField(tbl: var SqlTable, expr: string): SqlField =
                      else: ""
     result.foreign = tokens[2].parseForeign
   else:
-    result.options = @[]
+    result.options = {}
     result.default = ""
 
 proc parseSqlTable*(expr: string): SqlTable =

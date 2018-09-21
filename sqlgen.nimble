@@ -18,4 +18,4 @@ task release, "Compiling a release version":
   var exe = ""
   if detectOs(Windows):
     exe = ".exe"
-  exec("nim c -d:release -o:parsesql2" & exe & " sqlgen.nim")
+  exec("nim c -d:release -o:sqlgen" & exe & " src/sqlgen.nim")

@@ -13,7 +13,7 @@ type
   SqlField* = object
     name*: string
     kind*: string
-    options*: seq[FieldProps]
+    options*: set[FieldProps]
     default*: string
     foreign*: SqlForeign
 
