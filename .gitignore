@@ -3,7 +3,8 @@
 !*.*
 !/*
 
-nimcache/
+!src/*
+!src/**/*
 
 # Vim backup file
 *.swp
@@ -13,3 +14,5 @@ nimcache/
 *.html
 *.tar.gz
 *.zip
+
+nimcache/
