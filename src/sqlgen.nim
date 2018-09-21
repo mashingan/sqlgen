@@ -1,5 +1,5 @@
-import sqlgen/[parsesql2, utils, types]
-import sqlgen/goout/[gotable, goentity]
+import sqlgenpkg/[parsesql2, utils, types]
+import sqlgenpkg/goout/[gotable, goentity]
 
 export parsesql2, utils, types, gotable, goentity
 

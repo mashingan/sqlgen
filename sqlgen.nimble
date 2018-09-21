@@ -4,8 +4,9 @@ version       = "0.1.0"
 author        = "Rahmatullah"
 description   = "SQL parser to create table object equivalent and Go output"
 license       = "MIT"
-srcDir        = "sqlgen"
-bin           = @["parsesql2"]
+bin           = @["sqlgen"]
+srcDir        = "src"
+skipDirs      = @["tests"]
 
 # Dependencies
 
