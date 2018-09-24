@@ -70,7 +70,10 @@ proc getDefault(expr: string): string =
 
 proc splitSchemaName(schnm: string): (string, string) =
   var schname = schnm.split('.', 1)
-  (schname[0], schname[1])
+  if schname.len >= 2:
+    (schname[0], schname[1])
+  else:
+    ("", schname[0])
 
 proc parseForeign(expr: string): SqlForeign =
   var tokens = expr.splitWhitespace
