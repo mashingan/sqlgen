@@ -9,6 +9,7 @@ type
 
   SqlForeign* = object
     schema*, table*, field*: string
+    isUnique*: bool
 
   SqlField* = object
     name*: string
@@ -20,6 +21,7 @@ type
   SqlTable* = object
     schema*, name*: string
     fields*: TableRef[string, SqlField]
+    referers*: TableRef[string, SqlForeign]
 
   Validater* = proc(x: int, tkn: seq[string]): bool
 

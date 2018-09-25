@@ -59,7 +59,7 @@ proc generateTableField*(field: SqlField): string =
   "$# $# `$#`" % [field.name.toPascalCase, field.kind.typeMap,
     gormbuilder]
 
-proc tableRelation(field: SqlField): FieldRelation =
+proc tableRelation*(field: SqlField): FieldRelation =
   if fpUnique in field.options:
     rOneToOne
   else:
@@ -153,3 +153,46 @@ If there's no provided output path or `-o=stdout` then the out file will be stdo
     toQuit QuitFailure
 
   (sqlfile, outpath)
+
+proc relate(field: SqlField, tables: var seq[SqlTable]): var SqlTable =
+  for table in tables.mitems:
+    if field.foreign.schema == table.schema and
+       field.foreign.table == table.name:
+      return table
+
+proc joinSchemaName(schema, name: string): string =
+  ([schema, name]).join(".")
+
+proc joinSchemaName*(table: SqlTable): string =
+  joinSchemaName(table.schema, table.name)
+
+proc `==`*(a, b: SqlTable): bool =
+  a.schema == b.schema and a.name == b.name
+
+proc relate*(sqltables: var seq[SqlTable]) =
+  for sqltable in sqltables.mitems:
+    for field in sqltable.fields.values:
+      if fpForeignKey notin field.options: continue
+      var tbl = field.relate sqltables
+      if tbl == sqltable: continue
+      tbl.referers[sqltable.joinSchemaName] = SqlForeign(
+        schema: sqltable.schema,
+        table: sqltable.name,
+        field: field.name,
+        isUnique: field.foreign.isUnique)
+
+proc `$`*(table: SqlTable): string =
+  result = "TABLE"
+  result &= " " & table.joinSchemaName & "\n"
+  result &= "fields:\n"
+  var fields = ""
+  for field in table.fields.values:
+    fields &= "fld: " & [field.name, field.kind].join(" ") & "\n"
+  result &= fields.indent(2)
+  result &= "referers:\n"
+  var refs = ""
+  for referer in table.referers.values:
+    refs &= "ref: " & [referer.schema, referer.table, referer.field].join(" ") &
+      "\n"
+    refs &= "is unique: " & $referer.isUnique & "\n"
+  result &= refs.indent(2)
