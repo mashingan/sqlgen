@@ -104,6 +104,7 @@ proc parseForeign(expr: string): SqlForeign =
         var fld = schname_fld[1].split(')')
         result.field = fld[0]
         break
+  result.relatedField = ""
   #dump result.schema
   #dump result.table
 

@@ -66,10 +66,10 @@ proc tableRelation*(field: SqlField): FieldRelation =
     rOneToMany
 
 proc generateFieldFK*(field: SqlField): string =
-  var rel = field.tableRelation
-  var manyid = if rel == rOneToOne: ""
-               else: "[]"
-  var gormbuilder = """gorm:"foreignkey:$1;association_foreignkey:$2""""
+  var
+    rel = field.tableRelation
+    manyid = if rel == rOneToOne: "" else: "[]"
+    gormbuilder = """gorm:"foreignkey:$1;association_foreignkey:$2""""
   if rel == rOneToOne:
     gormbuilder = gormbuilder % [field.name.toPascalCase,
       field.foreign.field.toPascalCase]
@@ -78,6 +78,20 @@ proc generateFieldFK*(field: SqlField): string =
       field.name.toPascalCase]
   "$# $# `$#`" % [field.name.toPascalCase & "FK",
     manyid & field.foreign.table.toPascalCase, gormbuilder]
+
+proc generateFieldFK*(foreign: SqlForeign): string =
+  var
+    rel = if foreign.isUnique: rOneToOne else: rOneToMany
+    manyid = if rel == rOneToOne: "" else: "[]"
+    fieldname = foreign.field.toPascalCase
+    gormbuilder = """gorm:"$1$2"""
+  if rel == rOneToOne:
+    discard
+  else:
+    discard
+
+  "$# $# `$#`" % [foreign.table.toPascalCase,
+    manyid & foreign.table.toPascalCase, gormbuilder]
 
 proc needTime*(tbl: SqlTable): bool =
   for field in tbl.fields.values:
@@ -179,6 +193,7 @@ proc relate*(sqltables: var seq[SqlTable]) =
         schema: sqltable.schema,
         table: sqltable.name,
         field: field.name,
+        relatedField: field.foreign.field,
         isUnique: field.foreign.isUnique)
 
 proc `$`*(table: SqlTable): string =

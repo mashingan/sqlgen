@@ -9,6 +9,7 @@ type
 
   SqlForeign* = object
     schema*, table*, field*: string
+    relatedField*: string
     isUnique*: bool
 
   SqlField* = object

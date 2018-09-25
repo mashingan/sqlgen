@@ -3,7 +3,7 @@ CREATE TABLE users (
     email VARCHAR(20) UNIQUE NOT NULL
 );
 
-CREATE TABLE PHONES (
+CREATE TABLE phones (
     `number` VARCHAR(20) UNIQUE NOT NULL,
     username VARCHAR(20) NOT NULL,
     FOREIGN KEY (username) REFERENCES users(username)
