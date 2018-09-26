@@ -76,6 +76,9 @@ proc splitSchemaName(schnm: string): (string, string) =
     ("", schname[0])
 
 proc parseForeign(expr: string): SqlForeign =
+  template stripP(thevar: untyped): untyped =
+    thevar.strip(chars={'(', ')'})
+
   var tokens = expr.splitWhitespace
   var pos = -1
   for idx, token in tokens:
@@ -87,8 +90,9 @@ proc parseForeign(expr: string): SqlForeign =
     var parpos = token.find '('
     if parpos == -1:
       (result.schema, result.table) = tokens[pos+1+idx].splitSchemaName
-      if idx+pos != tokens.len - 1 and tokens[pos+1+idx+1].startsWith("("):
-        result.field = tokens[pos+1+idx+1].strip(chars={'(', ')'})
+      if idx+pos < tokens.len - 1 and tokens[pos+1+idx+1].startsWith("("):
+        result.field = tokens[pos+1+idx+1].stripP
+      break
     elif parpos == 0 and idx != 0:
       (result.schema, result.table) = tokens[pos+1+idx-1].splitSchemaName
       if idx+pos != tokens.len - 1 and token != "(":

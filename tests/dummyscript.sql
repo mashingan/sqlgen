@@ -7,7 +7,7 @@ CREATE TABLE users (
 CREATE TABLE phones (
     `number` VARCHAR(20) UNIQUE NOT NULL,
     name VARCHAR(20) NOT NULL,
-    FOREIGN KEY (name) REFERENCES users (username)
+    FOREIGN KEY (name) REFERENCES users ( username)
 );
 
 CREATE TABLE address(
