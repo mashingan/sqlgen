@@ -8,6 +8,7 @@ CREATE TABLE phones (
     `number` VARCHAR(20) UNIQUE NOT NULL,
     name VARCHAR(20) NOT NULL,
     FOREIGN KEY (name) REFERENCES users ( username)
+        ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 CREATE TABLE address(
