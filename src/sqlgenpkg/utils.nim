@@ -50,7 +50,7 @@ proc generateTableField*(field: SqlField): string =
     if field.default != "": ";default:" & field.default else: "",
     if fpPrimaryKey in field.options: ";primary_key" else: "",
     if fpUnique in field.options: ";unique" else: "",
-    if fpIndex in field.options: ";index:" % [field.name] else: "",
+    if fpIndex in field.options: ";index:$#" % [field.name] else: "",
     if fpNotNull in field.options: ";not null" else: "",
     if fpUnique in field.options and fpIndex in field.options:
       ";unique_index"
@@ -79,18 +79,18 @@ proc generateFieldFK*(field: SqlField): string =
   "$# $# `$#`" % [field.name.toPascalCase & "FK",
     manyid & field.foreign.table.toPascalCase, gormbuilder]
 
-proc generateFieldFK*(foreign: SqlForeign): string =
+proc generateFieldFK*(refforeign: SqlForeign): string =
   var
-    one2one = if foreign.isUnique: true else: false
+    one2one = if refforeign.isUnique: true else: false
     manyid = if one2one: "" else: "[]"
-    fieldname = foreign.field.toPascalCase
-    refererTable = foreign.table.toPascalCase
+    fieldname = refforeign.field.toPascalCase
+    refererTable = refforeign.table.toPascalCase
     refRefer = refererTable & "Refer"
     gormbuilder = """gorm:"foreignkey:$1;association_foreignkey:$2"""
   if one2one:
     gormbuilder = gormbuilder % [refRefer, fieldname]
   else:
-    gormbuilder = gormbuilder % [fieldname, foreign.relatedField.toPascalCase]
+    gormbuilder = gormbuilder % [fieldname, refforeign.relatedField.toPascalCase]
 
   result = "$# $# `$#`" % [refererTable, manyid & refererTable, gormbuilder]
   if one2one:

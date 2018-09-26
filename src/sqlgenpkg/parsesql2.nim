@@ -85,7 +85,11 @@ proc parseForeign(expr: string): SqlForeign =
     return SqlForeign()
   for idx, token in tokens[pos+1 .. ^1]:
     var parpos = token.find '('
-    if parpos == 0 and idx != 0:
+    if parpos == -1:
+      (result.schema, result.table) = tokens[pos+1+idx].splitSchemaName
+      if idx+pos != tokens.len - 1 and tokens[pos+1+idx+1].startsWith("("):
+        result.field = tokens[pos+1+idx+1].strip(chars={'(', ')'})
+    elif parpos == 0 and idx != 0:
       (result.schema, result.table) = tokens[pos+1+idx-1].splitSchemaName
       if idx+pos != tokens.len - 1 and token != "(":
         result.field = tokens[pos+idx].strip(chars = {'(', ')'} + Whitespace)
@@ -105,8 +109,6 @@ proc parseForeign(expr: string): SqlForeign =
         result.field = fld[0]
         break
   result.relatedField = ""
-  #dump result.schema
-  #dump result.table
 
 proc parseTableField(tbl: var SqlTable, expr: string): SqlField =
   when not defined(release):
@@ -115,7 +117,6 @@ proc parseTableField(tbl: var SqlTable, expr: string): SqlField =
   if tokens[0] == "foreign" and tokens[1] == "key":
     var fieldname = tokens[2].split(')', 1)[0].strip(chars = {'(', ')'})
     var field = tbl.fields[fieldname]
-    #dump field
     field.options.incl fpForeignKey
     field.foreign = expr.parseForeign
     field.foreign.isUnique = fpUnique in field.options
@@ -127,9 +128,12 @@ proc parseTableField(tbl: var SqlTable, expr: string): SqlField =
     result.default = if "default" in tokens[2]: tokens[2].getDefault
                      else: ""
     result.foreign = tokens[2].parseForeign
+    result.foreign.isUnique = fpUnique in result.options
   else:
     result.options = {}
     result.default = ""
+  when not defined(release):
+    dump result
 
 proc parseSqlTable*(expr: string): SqlTable =
   var tokens = expr.purgeComments.splitWhitespace
