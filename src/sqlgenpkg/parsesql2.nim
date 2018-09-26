@@ -104,6 +104,7 @@ proc parseForeign(expr: string): SqlForeign =
         var fld = schname_fld[1].split(')')
         result.field = fld[0]
         break
+  result.relatedField = ""
   #dump result.schema
   #dump result.table
 
@@ -117,8 +118,9 @@ proc parseTableField(tbl: var SqlTable, expr: string): SqlField =
     #dump field
     field.options.incl fpForeignKey
     field.foreign = expr.parseForeign
+    field.foreign.isUnique = fpUnique in field.options
     return field
-  result.name = tokens[0]
+  result.name = tokens[0].strip(chars = {'`'})
   result.kind = tokens[1]
   if tokens.len > 2:
     result.options = tokens[2].parseOptions
@@ -153,6 +155,7 @@ proc parseSqlTable*(expr: string): SqlTable =
         break
 
   result.fields = newTable[string, SqlField]()
+  result.referers = newTable[string, SqlForeign]()
   tokens = (tokens[pos+1 .. ^1]).join(sep=" ").split(',')
   for idx, token in tokens:
     var field = result.parseTableField token.strip.tokenizeParenthesis
@@ -213,6 +216,7 @@ proc getTables*(exprs: SqlExpressions): seq[SqlTable] =
     var tokens = expression.splitWhitespace
     if tokens.len > 2 and tokens[0] == "create" and tokens[1] == "table":
       result.add expression.parseSqlTable
+  relate result
 
 when isMainModule:
   proc main =

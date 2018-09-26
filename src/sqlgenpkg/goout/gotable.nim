@@ -11,10 +11,9 @@
 type $tablename struct {
   #for field in sqltable.fields.values:
         $field.generateTableField
-        #if field.hasForeignKey:
-        #var fkfield = field.generateFieldFK
-        $fkfield
-        #end if
+  #end for
+  #for refer in sqltable.referers.values:
+        $refer.generateFieldFK
   #end for
 }
 

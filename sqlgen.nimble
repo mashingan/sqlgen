@@ -19,3 +19,6 @@ task release, "Compiling a release version":
   if detectOs(Windows):
     exe = ".exe"
   exec("nim c -d:release -o:sqlgen" & exe & " src/sqlgen.nim")
+
+task test, "Test dummy script sql":
+  exec "nim c -r tests/test1"

@@ -1,7 +1,7 @@
 import strutils, strformat, tables, sequtils, parseopt, os
+import strformat
 
 when not defined(release):
-  import strformat
   import future
 
 import types
@@ -59,17 +59,17 @@ proc generateTableField*(field: SqlField): string =
   "$# $# `$#`" % [field.name.toPascalCase, field.kind.typeMap,
     gormbuilder]
 
-proc tableRelation(field: SqlField): FieldRelation =
+proc tableRelation*(field: SqlField): FieldRelation =
   if fpUnique in field.options:
     rOneToOne
   else:
     rOneToMany
 
 proc generateFieldFK*(field: SqlField): string =
-  var rel = field.tableRelation
-  var manyid = if rel == rOneToOne: ""
-               else: "[]"
-  var gormbuilder = """gorm:"foreignkey:$1;association_foreignkey:$2""""
+  var
+    rel = field.tableRelation
+    manyid = if rel == rOneToOne: "" else: "[]"
+    gormbuilder = """gorm:"foreignkey:$1;association_foreignkey:$2""""
   if rel == rOneToOne:
     gormbuilder = gormbuilder % [field.name.toPascalCase,
       field.foreign.field.toPascalCase]
@@ -78,6 +78,25 @@ proc generateFieldFK*(field: SqlField): string =
       field.name.toPascalCase]
   "$# $# `$#`" % [field.name.toPascalCase & "FK",
     manyid & field.foreign.table.toPascalCase, gormbuilder]
+
+proc generateFieldFK*(foreign: SqlForeign): string =
+  var
+    one2one = if foreign.isUnique: true else: false
+    manyid = if one2one: "" else: "[]"
+    fieldname = foreign.field.toPascalCase
+    refererTable = foreign.table.toPascalCase
+    refRefer = refererTable & "Refer"
+    gormbuilder = """gorm:"foreignkey:$1;association_foreignkey:$2"""
+  if one2one:
+    gormbuilder = gormbuilder % [refRefer, fieldname]
+  else:
+    gormbuilder = gormbuilder % [fieldname, foreign.relatedField.toPascalCase]
+
+  result = "$# $# `$#`" % [refererTable, manyid & refererTable, gormbuilder]
+  if one2one:
+    result &= "\n"
+    result &= indent(fmt"""{refRefer} uint""", 8)
+
 
 proc needTime*(tbl: SqlTable): bool =
   for field in tbl.fields.values:
@@ -153,3 +172,48 @@ If there's no provided output path or `-o=stdout` then the out file will be stdo
     toQuit QuitFailure
 
   (sqlfile, outpath)
+
+proc relate(field: SqlField, tables: var seq[SqlTable]): var SqlTable =
+  for table in tables.mitems:
+    if field.foreign.schema == table.schema and
+       field.foreign.table == table.name:
+      return table
+
+proc joinSchemaName(schema, name: string): string =
+  ([schema, name]).join(".")
+
+proc joinSchemaName*(table: SqlTable): string =
+  joinSchemaName(table.schema, table.name)
+
+proc `==`*(a, b: SqlTable): bool =
+  a.schema == b.schema and a.name == b.name
+
+proc relate*(sqltables: var seq[SqlTable]) =
+  for sqltable in sqltables.mitems:
+    for field in sqltable.fields.values:
+      if fpForeignKey notin field.options: continue
+      var tbl = field.relate sqltables
+      if tbl == sqltable: continue
+      tbl.referers[sqltable.joinSchemaName] = SqlForeign(
+        schema: sqltable.schema,
+        table: sqltable.name,
+        field: field.name,
+        relatedField: field.foreign.field,
+        isUnique: field.foreign.isUnique)
+
+proc `$`*(table: SqlTable): string =
+  result = "TABLE"
+  result &= " " & table.joinSchemaName & "\n"
+  result &= "fields:\n"
+  var fields = ""
+  for field in table.fields.values:
+    fields &= "fld: " & [field.name, field.kind].join(" ") & "\n"
+  result &= fields.indent(2)
+  result &= "referers:\n"
+  var refs = ""
+  for referer in table.referers.values:
+    refs &= "ref: " & [referer.schema, referer.table, referer.field].join(" ") &
+      "\n"
+    refs &= "is unique: " & $referer.isUnique & "\n"
+    refs &= "relatedField: " & referer.relatedField & '\n'
+  result &= refs.indent(2)

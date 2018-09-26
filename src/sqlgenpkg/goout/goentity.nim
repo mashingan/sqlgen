@@ -4,7 +4,10 @@
 #import ../utils
 #import gotable
 #
-#proc writeGoEntity*(f: File, sqltable: seq[SqlTable], needtime = false) =
+#proc writeGoEntity*(f: File, sqltable: seq[SqlTable], needtime = false, version = "") =
+/*
+Generated with sqlgen $version (c) Rahmatullah
+*/
 package entity
 
 import (
