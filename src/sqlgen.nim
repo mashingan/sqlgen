@@ -26,10 +26,8 @@ when isMainModule:
       var fname = paramStr 1
       var tables = fname.parseSql.parse.getTables
       for table in tables: echo table
-      #[
       stdout.writeGoEntity(tables, needtime = tables.needtime,
         version = version)
-      ]#
 
 
   main()

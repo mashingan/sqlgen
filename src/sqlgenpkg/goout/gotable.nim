@@ -12,6 +12,9 @@ type $tablename struct {
   #for field in sqltable.fields.values:
         $field.generateTableField
   #end for
+  #for refer in sqltable.referers.values:
+        $refer.generateFieldFK
+  #end for
 }
 
 func ($tablename) Schema() string {

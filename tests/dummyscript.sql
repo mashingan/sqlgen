@@ -5,6 +5,6 @@ CREATE TABLE users (
 
 CREATE TABLE phones (
     `number` VARCHAR(20) UNIQUE NOT NULL,
-    username VARCHAR(20) NOT NULL,
-    FOREIGN KEY (username) REFERENCES users(username)
+    name VARCHAR(20) NOT NULL,
+    FOREIGN KEY (name) REFERENCES users(username)
 );

@@ -1,7 +1,7 @@
 import strutils, strformat, tables, sequtils, parseopt, os
+import strformat
 
 when not defined(release):
-  import strformat
   import future
 
 import types
@@ -81,17 +81,22 @@ proc generateFieldFK*(field: SqlField): string =
 
 proc generateFieldFK*(foreign: SqlForeign): string =
   var
-    rel = if foreign.isUnique: rOneToOne else: rOneToMany
-    manyid = if rel == rOneToOne: "" else: "[]"
+    one2one = if foreign.isUnique: true else: false
+    manyid = if one2one: "" else: "[]"
     fieldname = foreign.field.toPascalCase
-    gormbuilder = """gorm:"$1$2"""
-  if rel == rOneToOne:
-    discard
+    refererTable = foreign.table.toPascalCase
+    refRefer = refererTable & "Refer"
+    gormbuilder = """gorm:"foreignkey:$1;association_foreignkey:$2"""
+  if one2one:
+    gormbuilder = gormbuilder % [refRefer, fieldname]
   else:
-    discard
+    gormbuilder = gormbuilder % [fieldname, foreign.relatedField.toPascalCase]
 
-  "$# $# `$#`" % [foreign.table.toPascalCase,
-    manyid & foreign.table.toPascalCase, gormbuilder]
+  result = "$# $# `$#`" % [refererTable, manyid & refererTable, gormbuilder]
+  if one2one:
+    result &= "\n"
+    result &= indent(fmt"""{refRefer} uint""", 8)
+
 
 proc needTime*(tbl: SqlTable): bool =
   for field in tbl.fields.values:
@@ -210,4 +215,5 @@ proc `$`*(table: SqlTable): string =
     refs &= "ref: " & [referer.schema, referer.table, referer.field].join(" ") &
       "\n"
     refs &= "is unique: " & $referer.isUnique & "\n"
+    refs &= "relatedField: " & referer.relatedField & '\n'
   result &= refs.indent(2)
