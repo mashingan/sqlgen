@@ -128,16 +128,17 @@ proc typeMap*(kind: string, sql = PostgreSql): string =
   else:
     discard
 
-proc parseCmd*(): tuple[sqlfile, outpath: string] =
+proc parseCmd*(version = ""): tuple[sqlfile, outpath: string] =
   var
     sqlfile = ""
     outpath = ""
     options = """
 parsesql: program to get SQL script and put the output to file
 Usage:
-  --input | --file | -i | -f  supply the input sql script path file
-  --out   | -o                provide the output path file
-  --help  | -h                print this
+  --input   | --file | -i | -f  supply the input sql script path file
+  --out     | -o                provide the output path file
+  --version | -v                print version
+  --help    | -h                print this
 
 Example:
   $./parsesql -f=/path/of/sql/script --out:entity.go
@@ -160,6 +161,9 @@ If there's no provided output path or `-o=stdout` then the out file will be stdo
       case key
       of "input", "file", "i", "f": sqlfile = val
       of "out", "o":                outpath = val
+      of "version", "v":
+        echo "sqlgen " & version
+        quit QuitSuccess
       of "help", "h":               toQuit QuitSuccess
     of cmdEnd:
       toQuit QuitFailure
