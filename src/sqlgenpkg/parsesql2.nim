@@ -1,8 +1,10 @@
 import os, strutils, sequtils, tables
 
 when not defined(release):
-  import strformat
-  import future
+  when NimMinor >= 19:
+    import sugar
+  else:
+    import future
 
 import types, utils
 import goout/gotable

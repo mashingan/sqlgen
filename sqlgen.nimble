@@ -5,6 +5,7 @@ author        = "Rahmatullah"
 description   = "SQL parser to create table object equivalent and Go output"
 license       = "MIT"
 bin           = @["sqlgen"]
+installExt    = @["nim"]
 srcDir        = "src"
 skipDirs      = @["tests"]
 

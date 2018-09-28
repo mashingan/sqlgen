@@ -2,7 +2,10 @@ import strutils, strformat, tables, sequtils, parseopt, os
 import strformat
 
 when not defined(release):
-  import future
+  when NimMinor >= 19:
+    import sugar
+  else:
+    import future
 
 import types
 
