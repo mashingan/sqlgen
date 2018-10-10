@@ -16,6 +16,7 @@ template caseChange(str: string, changeFirst = false): string =
     var pos = 1
   else:
     var pos = 0
+    buffer = ""
   while pos < str.len:
     var c = str[pos]
     if c == '_':
