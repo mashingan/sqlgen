@@ -21,12 +21,16 @@ task release, "Compiling a release version":
     exe = ".exe"
   exec("nim c -d:release -o:sqlgen" & exe & " src/sqlgen.nim")
 
-task test01, "Test 1 dummy script sql":
+task basic, "Test 1 dummy script sql":
   exec "nim c -r tests/test1"
 
-task test02, "Test 2 constrained script sql":
+task constrained, "Test 2 constrained script sql":
   exec "nim c -r tests/test2"
 
+task timezone, "Test 3 time zoned script sql":
+  exec "nim c -r tests/test3"
+
 task test_all, "Test all cases":
-  exec "nimble test01"
-  exec "nimble test02"
+  exec "nimble basic"
+  exec "nimble constrained"
+  exec "nimble timezone"

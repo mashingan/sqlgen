@@ -133,6 +133,8 @@ proc discardConstraintToken(expr: string): seq[string] =
     result.add token
 
 
+proc hasWithTimezone(expr: string): bool =
+  ["with", "time", "zone"].allIt( expr.find(it) != -1 )
 
 proc parseTableField(tbl: var SqlTable, expr: string): SqlField =
   when not defined(release):
@@ -150,10 +152,15 @@ proc parseTableField(tbl: var SqlTable, expr: string): SqlField =
   result.name = tokens[0].strip(chars = {'`'})
   result.kind = tokens[1]
   if tokens.len > 2:
-    result.options = tokens[2].parseOptions
-    result.default = if "default" in tokens[2]: tokens[2].getDefault
+    var infofield = tokens[2]
+    if result.kind.startsWith("time") and infofield.hasWithTimezone:
+      # WARNING: ERROR when the syntax is not correct
+      if infofield.find("without") == -1: result.kind &= "tz"
+      infofield = infofield.splitWhitespace[3 .. ^1].join " "
+    result.options = infofield.parseOptions
+    result.default = if "default" in infofield: infofield.getDefault
                      else: ""
-    result.foreign = tokens[2].parseForeign
+    result.foreign = infofield.parseForeign
     result.foreign.isUnique = fpUnique in result.options
   else:
     result.options = {}
