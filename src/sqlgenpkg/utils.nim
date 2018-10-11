@@ -186,6 +186,7 @@ proc relate(field: SqlField, tables: var seq[SqlTable]): var SqlTable =
     if field.foreign.schema == table.schema and
        field.foreign.table == table.name:
       return table
+  nil
 
 proc joinSchemaName(schema, name: string): string =
   ([schema, name]).join(".")

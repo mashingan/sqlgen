@@ -116,12 +116,32 @@ proc parseForeign(expr: string): SqlForeign =
         break
   result.relatedField = ""
 
+proc isForeignConstraint(expr: string): bool =
+  result = false
+  if expr.startsWith("constraint") or expr.startsWith("foreign"):
+    result = true
+
+proc discardConstraintToken(expr: string): seq[string] =
+  var tokens = expr.splitWhitespace
+  var foundForeign = false
+  for token in tokens:
+    if token == "foreign" or token.startsWith "foreign":
+      foundForeign = true
+
+    if not foundForeign: continue
+
+    result.add token
+
+
+
 proc parseTableField(tbl: var SqlTable, expr: string): SqlField =
   when not defined(release):
     dump expr
   var tokens = expr.splitWhitespace 2
-  if tokens[0] == "foreign" and tokens[1] == "key":
+  if expr.isForeignConstraint:
+    tokens = expr.discardConstraintToken
     var fieldname = tokens[2].split(')', 1)[0].strip(chars = {'(', ')'})
+    when not defined(release): dump fieldname
     var field = tbl.fields[fieldname]
     field.options.incl fpForeignKey
     field.foreign = expr.parseForeign
