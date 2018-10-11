@@ -8,7 +8,7 @@ type
     rOneToOne, rOneToMany
 
   SqlForeign* = object
-    schema*, table*, field*: string
+    schema*, table*, field*, kind*: string
     relatedField*: string
     isUnique*: bool
 

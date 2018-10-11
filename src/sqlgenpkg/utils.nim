@@ -90,6 +90,7 @@ proc generateFieldFK*(refforeign: SqlForeign): string =
     fieldname = refforeign.field.toPascalCase
     refererTable = refforeign.table.toPascalCase
     refRefer = refererTable & "Refer"
+    refKind = refforeign.kind.typeMap
     gormbuilder = """gorm:"foreignkey:$1;association_foreignkey:$2"""
   if one2one:
     gormbuilder = gormbuilder % [refRefer, fieldname]
@@ -99,7 +100,7 @@ proc generateFieldFK*(refforeign: SqlForeign): string =
   result = "$# $# `$#`" % [refererTable, manyid & refererTable, gormbuilder]
   if one2one:
     result &= "\n"
-    result &= indent(fmt"""{refRefer} uint""", 8)
+    result &= indent(fmt"""{refRefer} {refKind}""", 8)
 
 
 proc needTime*(tbl: SqlTable): bool =
@@ -207,6 +208,7 @@ proc relate*(sqltables: var seq[SqlTable]) =
         schema: sqltable.schema,
         table: sqltable.name,
         field: field.name,
+        kind: field.kind,
         relatedField: field.foreign.field,
         isUnique: field.foreign.isUnique)
 
