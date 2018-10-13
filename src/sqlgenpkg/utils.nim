@@ -33,7 +33,8 @@ proc toCamelCase*(str: string): string =
 proc toPascalCase*(str: string): string =
   str.caseChange true
 
-proc typeMap*(kind: string, sql = PostgreSql): string
+proc typeMap*(field: SqlField): string
+proc typeMap*(kind: string, sql: SqlDb): string
 
 proc hasForeignKey*(field: SqlField): bool =
   fpForeignKey in field.options
@@ -43,6 +44,13 @@ proc hasForeignKey*(tbl: SqlTable): bool =
     if field.hasForeignKey:
       return true
   false
+
+converter toSqlDb(kind: string): SqlDb =
+  case kind.toLowerAscii
+  of "postgresql": result = PostgreSql
+  of "sqlite": result = Sqlite
+  of "mysql": result = MySql
+  of "mariadb": result = MariaDb
 
 proc generateTableField*(field: SqlField): string =
   #fmt"{field.name.toPascalCase} {field.kind.sqlTypeMap},"
@@ -60,7 +68,7 @@ proc generateTableField*(field: SqlField): string =
       ";unique_index"
     else: ""
   ]
-  "$# $# `$#`" % [field.name.toPascalCase, field.kind.typeMap,
+  "$# $# `$#`" % [field.name.toPascalCase, field.typeMap,
     gormbuilder]
 
 proc tableRelation*(field: SqlField): FieldRelation =
@@ -83,14 +91,14 @@ proc generateFieldFK*(field: SqlField): string =
   "$# $# `$#`" % [field.name.toPascalCase & "FK",
     manyid & field.foreign.table.toPascalCase, gormbuilder]
 
-proc generateFieldFK*(refforeign: SqlForeign): string =
+proc generateFieldFK*(refforeign: SqlForeign, sqltype = PostgreSql): string =
   var
     one2one = if refforeign.isUnique: true else: false
     manyid = if one2one: "" else: "[]"
     fieldname = refforeign.field.toPascalCase
     refererTable = refforeign.table.toPascalCase
     refRefer = refererTable & "Refer"
-    refKind = refforeign.kind.typeMap
+    refKind = refforeign.kind.typeMap sqltype
     gormbuilder = """gorm:"foreignkey:$1;association_foreignkey:$2"""
   if one2one:
     gormbuilder = gormbuilder % [refRefer, fieldname]
@@ -113,7 +121,10 @@ proc needTime*(tbl: SqlTable): bool =
 proc needTime*(tbls: seq[SqlTable]): bool =
   tbls.any needTime
 
-proc typeMap*(kind: string, sql = PostgreSql): string =
+proc typeMap*(field: SqlField): string =
+  field.kind.typeMap field.dbType
+
+proc typeMap*(kind: string, sql: SqlDb): string =
   result = kind
   case sql
   of PostgreSql:
@@ -133,14 +144,18 @@ proc typeMap*(kind: string, sql = PostgreSql): string =
   else:
     discard
 
-proc parseCmd*(version = ""): tuple[sqlfile, outpath: string] =
+proc parseCmd*(version = ""): tuple[sqlfile, outpath: string, sqlType: SqlDb] =
   var
     sqlfile = ""
     outpath = ""
+    sqltype = ""
     options = """
 parsesql: program to get SQL script and put the output to file
 Usage:
   --input   | --file | -i | -f  supply the input sql script path file
+  --sql                         choose the sql db type
+                                  values: postgresql, mariadb, sqlite, mysql
+                                  default: postgresql
   --out     | -o                provide the output path file
   --version | -v                print version
   --help    | -h                print this
@@ -165,6 +180,7 @@ If there's no provided output path or `-o=stdout` then the out file will be stdo
     of cmdLongOption, cmdShortOption:
       case key
       of "input", "file", "i", "f": sqlfile = val
+      of "sql":                     sqltype = val
       of "out", "o":                outpath = val
       of "version", "v":
         echo "sqlgen " & version
@@ -180,7 +196,9 @@ If there's no provided output path or `-o=stdout` then the out file will be stdo
     echo sqlfile, " not available"
     toQuit QuitFailure
 
-  (sqlfile, outpath)
+  if sqltype == "": sqltype = "postgresql"
+
+  (sqlfile, outpath, sqltype.toSqlDb)
 
 proc relate(field: SqlField, tables: var seq[SqlTable]): var SqlTable =
   for table in tables.mitems:

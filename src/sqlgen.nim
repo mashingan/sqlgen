@@ -11,7 +11,7 @@ const version* = "0.1.0"
 when isMainModule:
   proc main =
     when defined(release):
-      var (filename, outpath) = parseCmd(version)
+      var (filename, outpath, sqltype) = parseCmd(version)
       var tables = filename.parseSql.parse.getTables
       var outfile: File
       if outpath == "stdout" or outpath == "":

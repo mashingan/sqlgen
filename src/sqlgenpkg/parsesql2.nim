@@ -136,7 +136,7 @@ proc discardConstraintToken(expr: string): seq[string] =
 proc hasWithTimezone(expr: string): bool =
   ["with", "time", "zone"].allIt( expr.find(it) != -1 )
 
-proc parseTableField(tbl: var SqlTable, expr: string): SqlField =
+proc parseTableField(tbl: var SqlTable, expr: string, sqltype: SqlDb): SqlField =
   when not defined(release):
     dump expr
   var tokens = expr.splitWhitespace 2
@@ -151,6 +151,7 @@ proc parseTableField(tbl: var SqlTable, expr: string): SqlField =
     return field
   result.name = tokens[0].strip(chars = {'`'})
   result.kind = tokens[1]
+  result.dbType = sqltype
   if tokens.len > 2:
     var infofield = tokens[2]
     if result.kind.startsWith("time") and infofield.hasWithTimezone:
@@ -168,7 +169,7 @@ proc parseTableField(tbl: var SqlTable, expr: string): SqlField =
   when not defined(release):
     dump result
 
-proc parseSqlTable*(expr: string): SqlTable =
+proc parseSqlTable*(expr: string, sqltype = PostgreSql): SqlTable =
   var tokens = expr.purgeComments.splitWhitespace
 
   var pos = -1
@@ -195,7 +196,7 @@ proc parseSqlTable*(expr: string): SqlTable =
   result.referers = newTable[string, SqlForeign]()
   tokens = (tokens[pos+1 .. ^1]).join(sep=" ").split(',')
   for idx, token in tokens:
-    var field = result.parseTableField token.strip.tokenizeParenthesis
+    var field = result.parseTableField(token.strip.tokenizeParenthesis, sqltype)
     result.fields[field.name] = field
 
 
@@ -246,7 +247,7 @@ proc parseSql*(filename: string): SqlExpressions =
   result = file.parseSql
   close file
 
-proc getTables*(exprs: SqlExpressions): seq[SqlTable] =
+proc getTables*(exprs: SqlExpressions, sqlType = PostgreSql): seq[SqlTable] =
   result = @[]
   for expr in exprs:
     var expression = expr.toLowerAscii

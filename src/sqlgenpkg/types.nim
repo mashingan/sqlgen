@@ -17,6 +17,7 @@ type
     kind*: string
     options*: set[FieldProps]
     default*: string
+    dbType*: SqlDb
     foreign*: SqlForeign
 
   SqlTable* = object
@@ -27,6 +28,6 @@ type
   Validater* = proc(x: int, tkn: seq[string]): bool
 
   SqlDb* = enum
-    MySql PostgreSql Sqlite MariaDb
+    PostgreSql MySql Sqlite MariaDb
 
   SqlExpressions* = seq[string]
