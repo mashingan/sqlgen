@@ -205,10 +205,10 @@ proc relate(field: SqlField, tables: var seq[SqlTable]): var SqlTable =
     if field.foreign.schema == table.schema and
        field.foreign.table == table.name:
       return table
-  nil
 
 proc joinSchemaName(schema, name: string): string =
-  ([schema, name]).join(".")
+  if schema == "": result = name
+  else: result = ([schema, name]).join(".")
 
 proc joinSchemaName*(table: SqlTable): string =
   joinSchemaName(table.schema, table.name)
@@ -216,12 +216,15 @@ proc joinSchemaName*(table: SqlTable): string =
 proc `==`*(a, b: SqlTable): bool =
   a.schema == b.schema and a.name == b.name
 
+proc empty(tbl: SqlTable): bool =
+  tbl.schema == "" and tbl.name == "" and tbl.fields.isNil
+
 proc relate*(sqltables: var seq[SqlTable]) =
   for sqltable in sqltables.mitems:
     for field in sqltable.fields.values:
       if fpForeignKey notin field.options: continue
       var tbl = field.relate sqltables
-      if tbl == sqltable: continue
+      if tbl == sqltable or tbl.empty: continue
       tbl.referers[sqltable.joinSchemaName] = SqlForeign(
         schema: sqltable.schema,
         table: sqltable.name,

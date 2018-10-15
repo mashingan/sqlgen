@@ -116,9 +116,14 @@ proc parseForeign(expr: string): SqlForeign =
         break
   result.relatedField = ""
 
+proc contains*(str, sub: string): bool =
+  if str.find(sub) != -1: true
+  else: false
+
 proc isForeignConstraint(expr: string): bool =
   result = false
-  if expr.startsWith("constraint") or expr.startsWith("foreign"):
+  if (expr.startsWith("constraint") and "foreign" in expr) or
+      expr.startsWith("foreign"):
     result = true
 
 proc discardConstraintToken(expr: string): seq[string] =
@@ -134,12 +139,24 @@ proc discardConstraintToken(expr: string): seq[string] =
 
 
 proc hasWithTimezone(expr: string): bool =
-  ["with", "time", "zone"].allIt( expr.find(it) != -1 )
+  ["with", "time", "zone"].allIt( it in expr )
+
+proc isPrimaryKeyConstraint(expr: string): bool =
+  (expr.startsWith("constraint") and "primary" in expr) or
+    expr.startsWith "primary"
+
+proc isUniqueConstraint(expr: string): bool =
+  (expr.startsWith("constraint") and "unique" in expr) or
+    expr.startsWith "unique"
+
+template stripParen(str: string): untyped =
+  str.strip(chars = {'(', ')'})
 
 proc parseTableField(tbl: var SqlTable, expr: string, sqltype: SqlDb): SqlField =
+  var tokens = expr.splitWhitespace 2
   when not defined(release):
     dump expr
-  var tokens = expr.splitWhitespace 2
+    dump tokens
   if expr.isForeignConstraint:
     tokens = expr.discardConstraintToken
     var fieldname = tokens[2].split(')', 1)[0].strip(chars = {'(', ')'})
@@ -149,19 +166,29 @@ proc parseTableField(tbl: var SqlTable, expr: string, sqltype: SqlDb): SqlField 
     field.foreign = expr.parseForeign
     field.foreign.isUnique = fpUnique in field.options
     return field
+  elif expr.isPrimaryKeyConstraint:
+    var fieldname = expr[expr.find("(") + 1 .. expr.find(")")-1]
+    var field = tbl.fields[fieldname]
+    field.options.incl fpPrimaryKey
+    return field
+  elif expr.isUniqueConstraint:
+    var fieldname = expr[expr.find("(")+1 .. expr.find(")")-1]
+    var field = tbl.fields[fieldname]
+    field.options.incl fpUnique
+    return field
   result.name = tokens[0].strip(chars = {'`', '"'})
   if tokens[1] == "character" and tokens[2].startsWith "varying":
     result.kind = "varchar"
     var oldline = tokens[2]
     tokens[2] = oldline[oldline.find(")")+1 .. ^1]
   else:
-    result.kind = tokens[2]
+    result.kind = tokens[1]
   result.dbType = sqltype
   if tokens.len > 2:
     var infofield = tokens[2]
     if result.kind.startsWith("time") and infofield.hasWithTimezone:
       # WARNING: ERROR when the syntax is not correct
-      if infofield.find("without") == -1: result.kind &= "tz"
+      if "without" notin infofield: result.kind &= "tz"
       infofield = infofield.splitWhitespace[3 .. ^1].join " "
     result.options = infofield.parseOptions
     result.default = if "default" in infofield: infofield.getDefault
@@ -308,6 +335,7 @@ when isMainModule:
         if line == "": continue
         exprs.add line.strip(trailing = false)
       close file
+
       var newtables = fname.parseSql.parse.getTables
       stdout.writeGoEntity(newtables, needtime = newtables.needtime)
 
