@@ -149,8 +149,13 @@ proc parseTableField(tbl: var SqlTable, expr: string, sqltype: SqlDb): SqlField 
     field.foreign = expr.parseForeign
     field.foreign.isUnique = fpUnique in field.options
     return field
-  result.name = tokens[0].strip(chars = {'`'})
-  result.kind = tokens[1]
+  result.name = tokens[0].strip(chars = {'`', '"'})
+  if tokens[1] == "character" and tokens[2].startsWith "varying":
+    result.kind = "varchar"
+    var oldline = tokens[2]
+    tokens[2] = oldline[oldline.find(")")+1 .. ^1]
+  else:
+    result.kind = tokens[2]
   result.dbType = sqltype
   if tokens.len > 2:
     var infofield = tokens[2]
