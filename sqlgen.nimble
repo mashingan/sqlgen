@@ -30,7 +30,20 @@ task constrained, "Test 2 constrained script sql":
 task timezone, "Test 3 time zoned script sql":
   exec "nim c -r tests/test3"
 
+task char_varying, "Test 4 character varying script sql":
+  exec "nim c -r tests/test4"
+
+task standalone_primarykey, "Test 5 constraint standalone primary key":
+  exec "nim c -r tests/test5"
+
+task standalone_uniquekey, "Test 6 constraint unique key":
+  exec "nim c -r tests/test6"
+
+
 task test_all, "Test all cases":
   exec "nimble basic"
   exec "nimble constrained"
   exec "nimble timezone"
+  exec "nimble char_varying"
+  exec "nimble standalone_primarykey"
+  exec "nimble standalone_uniquekey"
