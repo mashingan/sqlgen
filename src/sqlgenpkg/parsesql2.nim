@@ -300,42 +300,6 @@ when isMainModule:
       else:
         quit "Please supply filename"
 
-      var file = open fname
-      var line = ""
-      var buff = ""
-      var tables = newSeq[SqlTable]()
-      while file.readLine line:
-        var tokens = line.toLowerAscii.splitWhitespace
-
-        if tokens.len > 2 and tokens[0] == "create" and tokens[1] == "table":
-          #echo line
-          buff &= (line & "\n")
-          while file.readLine line:
-            line = line.toLowerAscii
-            var pos = line.find(';')
-            if pos == line.len - 1:
-              buff &= (line & "\n")
-              tables.add buff.parseSqlTable()
-              buff = ""
-              break
-            elif pos == -1:
-              buff &= (line & "\n")
-            else:
-              buff &= (line[0..pos] & "\n")
-              tables.add buff.parseSqlTable()
-              buff = line[pos+1..^1]
-        else:
-          discard
-      #stdout.writeGoEntity(tables, needtime = tables.needtime)
-
-      file.setFilePos 0
-      var exprs = newseq[string]()
-      while not file.endOfFile:
-        var line = file.readLine & "\n"
-        if line == "": continue
-        exprs.add line.strip(trailing = false)
-      close file
-
       var newtables = fname.parseSql.parse.getTables
       stdout.writeGoEntity(newtables, needtime = newtables.needtime)
 
