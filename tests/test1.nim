@@ -1,4 +1,7 @@
-import sqlgen, unittest, sequtils, tables, strutils
+import sqlgen, unittest
+from sequtils import mapIt
+from tables import len, `[]`, contains
+from strutils import join
 
 var fname = "tests/dummyscript.sql"
 var table = fname.parseSql.parse.getTables
