@@ -241,12 +241,13 @@ proc parse*(lines: seq[string]): seq[string] =
     prevline = ""
     cont = false
     ln = ""
+  let bomfile = {chr 239, chr 187, chr 191}
   for line in lines:
     if line.startsWith("\\") or line.startsWith("--"):
       continue
 
-    if cont: ln = prevline & line
-    else: ln = line
+    if cont: ln = prevline & line.strip(chars = bomfile)
+    else: ln = line.strip(chars = bomfile)
 
     prevline = ""
     cont = false
