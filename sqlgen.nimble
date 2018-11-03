@@ -13,13 +13,20 @@ skipDirs      = @["tests"]
 
 requires "nim >= 0.18.0"
 
-import distros
+import distros, strutils
 
 task release, "Compiling a release version":
   var exe = ""
   if detectOs(Windows):
     exe = ".exe"
   exec("nim c -d:release -o:sqlgen" & exe & " src/sqlgen.nim")
+
+task release_tcc, "Compiling a release version using tiny-c compiler and empahsizing size":
+  var exe = ""
+  if detectOs Windows:
+    exe = ".exe"
+  let fname = "sqlgen" & exe
+  exec("nim c --cc:tcc -d:release -o:$# src/sqlgen.nim" % [fname])
 
 task basic, "Test 1 dummy script sql":
   exec "nim c -r tests/test1"
