@@ -188,7 +188,8 @@ proc parseTableField(tbl: var SqlTable, expr: string, sqltype: SqlDb): SqlField 
     var infofield = tokens[2]
     if result.kind.startsWith("time") and infofield.hasWithTimezone:
       # WARNING: ERROR when the syntax is not correct
-      if "without" notin infofield: result.kind &= "tz"
+      if "without" notin infofield: result.kind = "timestamptz"
+      else: result.kind = "timestamp"
       infofield = infofield.splitWhitespace[3 .. ^1].join " "
     result.options = infofield.parseOptions
     result.default = if "default" in infofield: infofield.getDefault
