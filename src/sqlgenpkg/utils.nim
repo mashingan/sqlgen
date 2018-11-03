@@ -161,7 +161,7 @@ Usage:
   --help    | -h                print this
 
 Example:
-  $./parsesql -f=/path/of/sql/script --out:entity.go
+  $./sqlgen -f=/path/of/sql/script --out:entity.go
 
 Any error will during parsing option will yield QuitFailure (-1) exit code.
 If there's no provided output path or `-o=stdout` then the out file will be stdout.
