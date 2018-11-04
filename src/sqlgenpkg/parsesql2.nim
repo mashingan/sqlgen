@@ -152,6 +152,10 @@ proc isUniqueConstraint(expr: string): bool =
 template stripParen(str: string): untyped =
   str.strip(chars = {'(', ')'})
 
+template fieldWithinParen(tbl: var SqlTable, expr: string): var SqlField =
+  let fieldname = expr[expr.find("(")+1 .. expr.find(")")-1]
+  tbl.fields[fieldname]
+
 proc parseTableField(tbl: var SqlTable, expr: string, sqltype: SqlDb): SqlField =
   var tokens = expr.splitWhitespace 2
   when not defined(release):
@@ -167,13 +171,11 @@ proc parseTableField(tbl: var SqlTable, expr: string, sqltype: SqlDb): SqlField 
     field.foreign.isUnique = fpUnique in field.options
     return field
   elif expr.isPrimaryKeyConstraint:
-    var fieldname = expr[expr.find("(") + 1 .. expr.find(")")-1]
-    var field = tbl.fields[fieldname]
+    var field = tbl.fieldWithinParen expr
     field.options.incl fpPrimaryKey
     return field
   elif expr.isUniqueConstraint:
-    var fieldname = expr[expr.find("(")+1 .. expr.find(")")-1]
-    var field = tbl.fields[fieldname]
+    var field = tbl.fieldWithinParen expr
     field.options.incl fpUnique
     return field
   result.name = tokens[0].strip(chars = {'`', '"'})
