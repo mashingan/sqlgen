@@ -1,7 +1,7 @@
 import os, strutils, sequtils, tables
 
 when not defined(release):
-  when NimMinor >= 19:
+  when NimMinor >= 19 or NimMajor >= 1:
     import sugar
   else:
     import future

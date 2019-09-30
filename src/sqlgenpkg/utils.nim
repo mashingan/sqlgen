@@ -2,7 +2,7 @@ import strutils, strformat, tables, sequtils, parseopt, os
 import strformat
 
 when not defined(release):
-  when NimMinor >= 19:
+  when NimMinor >= 19 or NimMajor >= 1:
     import sugar
   else:
     import future
@@ -141,8 +141,6 @@ proc typeMap*(kind: string, sql: SqlDb): string =
     discard
   of Sqlite:
     discard
-  else:
-    discard
 
 proc parseCmd*(version = ""): tuple[sqlfile, outpath: string, sqlType: SqlDb] =
   var
@@ -166,7 +164,7 @@ Example:
 Any error will during parsing option will yield QuitFailure (-1) exit code.
 If there's no provided output path or `-o=stdout` then the out file will be stdout.
 """
-  template toQuit(exitcode: int): typed =
+  template toQuit(exitcode: int) =
     echo options
     quit exitcode
 
